@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="tk.mybatis.simple.mapper.UserMapper">
+
+    <resultMap id="userMap" type="tk.mybatis.simple.model.SysUser">
+        <id property="id" column="id"/>
+        <result property="userName" column="user_name"/>
+        <result property="userPassword" column="user_password"/>
+        <result property="userEmail" column="user_email"/>
+        <result property="userInfo" column="user_info"/>
+        <result property="headImg" column="head_img" jdbcType="BLOB"/>
+        <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <resultMap id="userRoleMap" type="tk.mybatis.simple.model.SysUser" extends="userMap">
+        <association property="role" columnPrefix="role_" resultMap="tk.mybatis.simple.mapper.RoleMapper.roleMap"/>
+    </resultMap>
+
+    <resultMap id="userRoleMapSelect" type="tk.mybatis.simple.model.SysUser" extends="userMap">
+        <association property="role" column="{id=role_id}" fetchType="lazy"
+                     select="tk.mybatis.simple.mapper.RoleMapper.selectRoleById"/>
+    </resultMap>
+
+    <resultMap id="userRoleListMap" type="tk.mybatis.simple.model.SysUser" extends="userMap">
+        <collection property="roleList" columnPrefix="role_"
+                    resultMap="tk.mybatis.simple.mapper.RoleMapper.rolePrivilegeListMap"/>
+    </resultMap>
+
+    <resultMap id="userRoleListMapSelect" type="tk.mybatis.simple.model.SysUser" extends="userMap">
+        <collection property="roleList" fetchType="lazy" column="{userId=id}"
+                    select="tk.mybatis.simple.mapper.RoleMapper.selectRoleByUserId"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="userMap">
+        select * from sys_user where id = #{id}
+    </select>
+
+    <select id="selectAll" resultType="tk.mybatis.simple.model.SysUser">
+        select id,
+          user_name,
+          user_password,
+          user_email,
+          user_info,
+          head_img,
+          create_time
+        from sys_user
+    </select>
+
+    <select id="selectRoleByUserId" resultMap="tk.mybatis.simple.mapper.RoleMapper.roleMap">
+        select
+          r.id,
+          r.role_name,
+          r.enabled,
+          r.create_by,
+          r.create_time,
+          u.user_name as "user.userName",
+          u.user_email as "user.userEmail"
+        from sys_user u
+        inner join sys_user_role ur on u.id = ur.user_id
+        inner join sys_role r on ur.role_id = r.id
+        where u.id = #{userId}
+    </select>
+
+    <insert id="insert">
+        insert into sys_user(
+            id, user_name, user_password, user_email,
+            user_info, head_img, create_time)
+        values (
+          #{id}, #{userName}, #{userPassword}, #{userEmail},
+          #{userInfo}, #{headImg, jdbcType=BLOB},
+          #{createTime,jdbcType=TIMESTAMP})
+    </insert>
+    <insert id="insert2" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_user(
+            user_name, user_password,
+            <if test="userEmail != null and userEmail != ''">
+              user_email,
+            </if>
+            user_info, head_img, create_time)
+        values (
+          #{userName}, #{userPassword},
+          <if test="userEmail != null and userEmail != ''">
+            #{userEmail},
+          </if>
+          #{userInfo}, #{headImg, jdbcType=BLOB},
+          #{createTime,jdbcType=TIMESTAMP})
+    </insert>
+    <insert id="insert3">
+        insert into sys_user(
+            user_name, user_password, user_email,
+            user_info, head_img, create_time)
+        values (
+          #{userName}, #{userPassword}, #{userEmail},
+          #{userInfo}, #{headImg, jdbcType=BLOB},
+          #{createTime,jdbcType=TIMESTAMP})
+        <selectKey keyColumn="id" resultType="long" keyProperty="id" order="AFTER">
+            select last_insert_id()
+        </selectKey>
+    </insert>
+
+    <update id="updateById">
+        update sys_user
+        set user_name = #{userName},
+          user_password = #{userPassword},
+          user_email = #{userEmail},
+          user_info = #{userInfo},
+          head_img = #{headImg, jdbcType=BLOB},
+          create_time = #{createTime,jdbcType=TIMESTAMP}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from sys_user where id = #{id}
+    </delete>
+
+    <select id="selectRoleByUserIdAndRoleEnable" resultMap="tk.mybatis.simple.mapper.RoleMapper.roleMap">
+        select
+            r.id,
+            r.role_name,
+            r.enabled,
+            r.create_by,
+            r.create_time
+        from sys_user u
+        inner join sys_user_role ur on u.id = ur.user_id
+        inner join sys_role r on ur.role_id = r.id
+        where u.id = #{userId} and r.enabled = #{enabled}
+    </select>
+
+    <select id="selectByUser" resultMap="userMap">
+        select id, user_name, user_password, user_email, user_info, head_img, create_time
+        from sys_user
+        <where>
+            <if test="userName != null and userName != ''">
+                <bind name="userNameLike" value="'%' + userName + '%'"/>
+                and user_name like #{userNameLike}
+            </if>
+            <if test="userEmail != null and userEmail != ''">
+                and user_email = #{userEmail}
+            </if>
+        </where>
+    </select>
+
+    <update id="updateByIdSelective">
+        update sys_user
+        <set>
+            <if test="userName != null and userName != ''">
+                user_name = #{userName},
+            </if>
+            <if test="userPassword != null and userPassword != ''">
+                user_password = #{userPassword},
+            </if>
+            <if test="userEmail != null and userEmail != ''">
+                user_email = #{userEmail},
+            </if>
+            <if test="userInfo != null and userInfo != ''">
+                user_info = #{userInfo},
+            </if>
+            <if test="headImg != null and headImg.length != 0">
+                head_img = #{headImg, jdbcType=BLOB},
+            </if>
+            <if test="createTime != null">
+                create_time = #{createTime,jdbcType=TIMESTAMP},
+            </if>
+            id = #{id},
+        </set>
+            where id = #{id}
+    </update>
+
+    <select id="selectByIdOrUserName" resultMap="userMap">
+        select id, user_name, user_password, user_email, user_info, head_img, create_time
+        from sys_user where 1 = 1
+        <choose>
+            <when test="id != null">
+                and id = #{id}
+            </when>
+            <when test="userName != null and userName != ''">
+                and user_name = #{userName}
+            </when>
+            <otherwise>
+                and 1 = 2
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectByIdList" resultMap="userMap">
+        select id, user_name, user_password, user_email, user_info, head_img, create_time
+        from sys_user
+        where id in
+        <foreach collection="list" open="(" close=")" separator="," item="id" index="1">
+            #{id}
+        </foreach>
+    </select>
+    <insert id="insertList" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_user(user_name, user_password, user_email, user_info, head_img, create_time)
+        values
+        <foreach collection="list" item="user" separator=",">
+            (
+                #{user.userName}, #{user.userPassword}, #{user.userEmail}, #{user.userInfo},
+                #{user.headImg, jdbcType=BLOB}, #{user.createTime,jdbcType=TIMESTAMP}
+            )
+        </foreach>
+    </insert>
+    <update id="updateByMap">
+        update sys_user
+        set
+        <foreach collection="map" item="val" index="key" separator=",">
+            ${key} = #{val}
+        </foreach>
+        where id = #{map.id}
+    </update>
+
+    <select id="selectUserAndRoleById" resultMap="userRoleMap">
+        select
+            u.id, u.user_name, u.user_email, u.user_info, u.head_img, u.create_time,
+            r.id role_id,
+            r.role_name role_role_name,
+            r.enabled role_enabled,
+            r.create_by role_create_by,
+            r.create_time role_create_time
+        from sys_user u
+        inner join sys_user_role ur on u.id = ur.user_id
+        inner join sys_role r on ur.role_id = r.id
+        where u.id = #{id}
+    </select>
+
+    <select id="selectUserAndRoleByIdSelect" resultMap="userRoleMapSelect">
+        select
+            u.id, u.user_name, u.user_password, u.user_email, u.user_info,
+            u.head_img, u.create_time, ur.role_id
+        from sys_user u
+        inner join sys_user_role ur on u.id = ur.user_id
+        where u.id = #{id}
+    </select>
+
+    <select id="selectAllUserAndRoles" resultMap="userRoleListMap">
+        select
+            u.id, u.user_name, u.user_password, u.user_info, u.head_img, u.create_time,
+            r.id role_id,
+            r.role_name role_role_name,
+            r.enabled role_enabled,
+            r.create_by role_create_by,
+            r.create_time role_create_time,
+            p.id role_privilege_id,
+            p.privilege_name role_privilege_privilege_name,
+            p.privilege_url role_privilege_privilege_url
+        from sys_user u
+        inner join sys_user_role ur on u.id = ur.user_id
+        inner join sys_role r on ur.role_id = r.id
+        inner join sys_role_privilege rp on rp.role_id = r.id
+        inner join sys_privilege p on p.id = rp.privilege_id
+    </select>
+
+    <select id="selectUserAndRolesSelectById" resultMap="userRoleListMapSelect">
+        select
+            u.id, u.user_name, u.user_password, u.user_email, u.user_info, u.head_img, u.create_time
+        from sys_user u
+        where u.id = #{id}
+    </select>
+
+
+</mapper>

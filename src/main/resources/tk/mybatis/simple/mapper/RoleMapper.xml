@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="tk.mybatis.simple.mapper.RoleMapper">
+    <!--开启二级缓存-->
+    <cache type="org.mybatis.caches.ehcache.EhcacheCache"/>
+    <resultMap id="roleMap" type="tk.mybatis.simple.model.SysRole">
+        <id property="id" column="id"/>
+        <result property="roleName" column="role_name"/>
+        <result property="enabled" column="enabled" typeHandler="tk.mybatis.simple.type.EnabledTypeHandler"/>
+        <association property="createInfo" javaType="tk.mybatis.simple.model.CreateInfo">
+            <result property="createBy" column="create_by"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+        </association>
+    </resultMap>
+
+    <resultMap id="rolePrivilegeListMap" type="tk.mybatis.simple.model.SysRole" extends="roleMap">
+        <collection property="privilegeList" columnPrefix="privilege_"
+                    resultMap="tk.mybatis.simple.mapper.PrivilegeMapper.privilegeMap"/>
+    </resultMap>
+
+    <resultMap id="rolePrivilegeListMapSelect" type="tk.mybatis.simple.model.SysRole" extends="roleMap">
+        <collection property="privilegeList" fetchType="lazy" column="{roleId=id}"
+                    select="tk.mybatis.simple.mapper.PrivilegeMapper.selectPrivilegeByRoleId"/>
+    </resultMap>
+
+    <resultMap id="rolePrivilegeListMapChoose" type="tk.mybatis.simple.model.SysRole">
+        <discriminator javaType="int" column="enabled">
+            <case value="1" resultMap="rolePrivilegeListMapSelect"/>
+            <case value="0" resultType="tk.mybatis.simple.model.SysRole">
+                <id property="id" column="id"/>
+                <result property="roleName" column="role_name"/>
+            </case>
+        </discriminator>
+    </resultMap>
+
+    <select id="selectRoleById" resultMap="roleMap">
+        select * from sys_role where id = #{id}
+    </select>
+
+    <select id="selectAllRoleAndPrivileges" resultMap="rolePrivilegeListMap">
+        select
+            r.id, r.role_name, r.enabled, r.create_by, r.create_time,
+            p.id privilege_id,
+            p.privilege_name privilege_privilege_name,
+            p.privilege_url privilege_privilege_url
+        from sys_role r
+        inner join sys_role_privilege rp on rp.role_id = r.id
+        inner join sys_privilege p on p.id = rp.privilege_id
+    </select>
+
+    <select id="selectRoleByUserId" resultMap="rolePrivilegeListMapSelect">
+        select
+            r.id, r.role_name, r.enabled, r.create_by, r.create_time
+        from sys_role r
+        inner join sys_user_role ur on ur.role_id=r.id
+        where ur.user_id = #{userId}
+    </select>
+
+    <select id="selectRoleByUserIdChoose" resultMap="rolePrivilegeListMapChoose">
+        select
+            r.id, r.role_name, r.enabled, r.create_by, r.create_time
+        from sys_role r
+        inner join sys_user_role ur on ur.role_id = r.id
+        where ur.user_id = #{userId}
+    </select>
+
+    <update id="updateById" parameterType="SysRole">
+        update sys_role
+        <set>
+            <if test="roleName != null and roleName != ''">
+                role_name = #{roleName},
+            </if>
+            <if test="enabled != null">
+                enabled = #{enabled, typeHandler=tk.mybatis.simple.type.EnabledTypeHandler},
+            </if>
+            <if test="createBy != null and createBy != ''">
+                create_by = #{createBy},
+            </if>
+            <if test="createTime != null">
+                create_time = #{createTime,jdbcType=TIMESTAMP},
+            </if>
+            id = #{id}
+        </set>
+        where id = #{id}
+    </update>
+</mapper>
